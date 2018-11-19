@@ -8,6 +8,9 @@ Latex
 *.out
 *.synctex.gz
 *.log
+*.bib
+*.sty
+*.bst
 
 # C extensions
 *.so
