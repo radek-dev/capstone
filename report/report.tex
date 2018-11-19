@@ -21,6 +21,7 @@
 % information when we convert the file to other formats).  Instead, keep
 % them in the preamble of your main LaTeX source file.
 
+\usepackage{graphicx}
 
 % The following parameters seem to provide a reasonable page setup.
 
@@ -105,7 +106,7 @@
 % Place your abstract within the special {sciabstract} environment.
 
 \begin{sciabstract}
-This document is the Interim Report for the Capstone Project.
+This document is the Interim Report for the Capstone Project. It shows the proto type for the database that will hold data the data from crypto-currency exchange Binance. I will have to collect data and come up with relevant strategies as I go along the project.
 \end{sciabstract}
 
 
@@ -121,15 +122,37 @@ This document is the Interim Report for the Capstone Project.
 % suppress numbering.
 
 \section*{Introduction}
+I have prepared a database prototype for this report. The structure of the database is described below.
 
-But the scope of this project is very wide - I would encourage you to identify a couple of specific aspects and focus in detail on those.
+\pagebreak
 
-Also, I would expect to see code outlines, cumulative progress report etc in all subsequent submissions (zip them up in a single file and then upload).
+\section*{Database Structure}
+I have included the below tables in this submission. The tables can be created and removed by SQL commands in the ``mysql\_scripts.sql`` file. The schema for the database is shows in Figure \ref{fig:schema}.
+\begin{figure}[h!]
+	\centering
+  \includegraphics[scale=0.45]{schema.png}
+  \caption{Schema}
+  \label{fig:schema}
+\end{figure}
 
-Kindly remember that this cannot just be a literature survey project - there has to be a technology implementation angle to it. 
 
+\subsection*{Bid and Ask}
+Bid and ask prices are split into two tables. The tables are identical. The tables from Figure \ref{fig:ask} and Figure \ref{fig:bid} carry the data for the symbol and specific Exchange time stamp as given by \textit{updateId} column. My time stamps are in the \textit{myUtc} column representing the time on my computer.
 
-Also please follow the academic reporting guidelines all through as per the templates shared.
+\begin{figure}[h!]
+	\centering
+  \includegraphics[scale=0.45]{ask.png}
+  \caption{Ask Price}
+  \label{fig:ask}
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+  \includegraphics[scale=0.45]{bid.png}
+  \caption{Bid Price}
+  \label{fig:bid}
+\end{figure}
+
 
 
 \section*{Formatting Citations}
