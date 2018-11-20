@@ -122,37 +122,46 @@ This document is the Interim Report for the Capstone Project. It shows the proto
 % suppress numbering.
 
 \section*{Introduction}
-I have prepared a database prototype for this report. The structure of the database is described below.
+I have prepared a database prototype for this report. The structure of the database is described below. The base for any trading is good data handling and the MySQL database is one way to achieve that. I decided to implemented. It should give us a lot functionality.
 
 \pagebreak
 
 \section*{Database Structure}
-I have included the below tables in this submission. The tables can be created and removed by SQL commands in the ``mysql\_scripts.sql`` file. The schema for the database is shows in Figure \ref{fig:schema}.
+I have included the below tables in this submission. The tables can be created and removed by SQL commands in the ``mysql\_scripts.sql`` file. The schema for the database is shows in Figure \ref{fig:schema}.\\
 \begin{figure}[h!]
 	\centering
-  \includegraphics[scale=0.45]{schema.png}
+  \includegraphics[scale=0.40]{schema.png}
   \caption{Schema}
   \label{fig:schema}
 \end{figure}
-
+\\
+It should be noted that I am missing relationships in the database at the moment. The database structure is still a prototype.
 
 \subsection*{Bid and Ask}
 Bid and ask prices are split into two tables. The tables are identical. The tables from Figure \ref{fig:ask} and Figure \ref{fig:bid} carry the data for the symbol and specific Exchange time stamp as given by \textit{updateId} column. My time stamps are in the \textit{myUtc} column representing the time on my computer.
 
 \begin{figure}[h!]
 	\centering
-  \includegraphics[scale=0.45]{ask.png}
+  \includegraphics[scale=0.3]{ask.png}
   \caption{Ask Price}
   \label{fig:ask}
 \end{figure}
 
 \begin{figure}[h!]
 	\centering
-  \includegraphics[scale=0.45]{bid.png}
+  \includegraphics[scale=0.3]{bid.png}
   \caption{Bid Price}
   \label{fig:bid}
 \end{figure}
 
+\subsection*{All Symbols}
+We know that it is easy to start mirroring the whole exchange we have the the list of a all symbols. The symbols with latest prices are stored in \textit{symbol} table. Symbol is the term the exchange uses. Currently, there are some 400 different currency pairs we can access through the exchange API.
+\begin{figure}[h!]
+	\centering
+  \includegraphics[scale=0.3]{symbol.png}
+  \caption{Symbols}
+  \label{fig:symbol}
+\end{figure}
 
 
 \section*{Formatting Citations}
