@@ -1,8 +1,13 @@
 CAPSTONE PROJECT - Readme
+
 Python Version: 2.7
+
 Author: Radek Chramosil
+
 Date: 26-Nov-2018
+
 Python code stored in: main.py
+
 Tested Platform: Linux 4.19.4-1-MANJARO
 
 CONTENTS OF THIS FILE
@@ -16,6 +21,7 @@ CONTENTS OF THIS FILE
  * Executing the project
  * Troubleshooting
  * Maintainers
+ * GitLab repo
 
 
 DESCRIPTION
@@ -46,8 +52,8 @@ PyMySQL==0.9.2 - See https://pypi.org/project/PyMySQL/
 
 SQLAlchemy==1.2.14 - see https://www.sqlalchemy.org/
  
- 
 The code is Python 3 compatible where possible.
+
 
 INSTALLATION
 ------------
@@ -59,17 +65,19 @@ INSTALLATION
    1. Type “pip install -r requirements.txt” in cmd prompt/shell or terminal.
    2. Install all requirements.
 
-You will need MySQL server instance as well.  I was don't provide any installation
- steps for MySQL server as this is platform dependent.
+You will need `MySQL` server instance as well.  I was don't provide any installation
+ steps for `MySQL` server as this is platform dependent.
  
-Also, the data set was fetched using my Binance account credentials. You will need those
+Also, the data set was fetched using my `Binance` account credentials. You will need those
 if you wish to make my code fully functional. My credentials are stored in `config.py` file
 that is not submitted with the project.
+
 
 ERROR INSTALLING SCIPY
 ---------------------------------
 If there are any issues installing SciPy library, please following instruction provided at 
 the documentation: https://www.scipy.org/install.html#scientific-python-distributions.
+
 
 EXECUTING THE PROJECT
 -------------
@@ -77,6 +85,7 @@ You can still run the below command if needed, however you need change the funct
  At the moment the code only can download the data and store them or create some plots.
 
 $ python main.py
+ 
  
 TROUBLESHOOTING
 ---------------
@@ -86,3 +95,9 @@ No log is available at the moment.
 MAINTAINERS
 -----------
 * Radek Chramosil - radek@keemail.me
+
+
+GitLab Repo
+-----------
+The project can also be accessed at https://gitlab.com/GitLabUser01/capstone.git.
+Let me know if you like to be graded access. It is private at the moment.
