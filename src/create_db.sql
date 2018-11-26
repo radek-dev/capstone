@@ -16,9 +16,9 @@ create or replace table symbolRef
 
 create index ix_symbol_index
   on symbolRef (`id`);
-
 # insert some reference data
 insert into symbolRef values (1, 'TUSDBTC');
+
 
 create or replace table bid
 (
@@ -48,5 +48,29 @@ create or replace table ask
 ) ENGINE = InnoDB;
 
 
+create table limits
+(
+  `index`       bigint null,
+  `interval`    text   null,
+  intervalNum   bigint null,
+  `limit`       bigint null,
+  rateLimitType text   null
+);
 
+create index ix_limits_index
+  on limits (`index`);
 
+create table data_dict
+(
+  data_field varchar(128) not null
+    primary key,
+  definition varchar(300) null
+)
+  comment 'store the data dictionary for columns within the database';
+
+# import some data directly
+INSERT INTO capstone.data_dict (data_field, definition) VALUES ('amount', 'quoted amount to trade for the quoted price');
+INSERT INTO capstone.data_dict (data_field, definition) VALUES ('price', 'quoted bid or ask price based on the table name');
+INSERT INTO capstone.data_dict (data_field, definition) VALUES ('symbol', 'currency pair ID');
+INSERT INTO capstone.data_dict (data_field, definition) VALUES ('updatedId', 'Time stamp from the exchange for the given set quotes');
+INSERT INTO capstone.data_dict (data_field, definition) VALUES ('UTC time stamp from the computer where the code run', 'UTC time stamp from the computer where the code run');

@@ -106,10 +106,8 @@
 % Place your abstract within the special {sciabstract} environment.
 
 \begin{sciabstract}
-This document is the Interim Report for the Capstone Project. It shows the proto type for the database that will hold data the data from crypto-currency exchange Binance. I will have to collect data and come up with relevant strategies as I go along the project.
+This document is the Interim Report for the Capstone Project. It shows the basic structure for the database that holds data the data from crypto-currency exchange Binance and some initial data analysis.
 \end{sciabstract}
-
-
 
 % In setting up this template for *Science* papers, we've used both
 % the \section* command and the \paragraph* command for topical
@@ -122,23 +120,30 @@ This document is the Interim Report for the Capstone Project. It shows the proto
 % suppress numbering.
 
 \section*{Introduction}
-I have prepared a database prototype for this report. The structure of the database is described below. The base for any trading is good data handling and the MySQL database is one way to achieve that. I decided to implemented. It should give us a lot functionality.
+The structure of the database is described below. Additionally,  I provide more details about the data analyses so far carried out as well as some suggestion for trading possible trading strategies. Some plots for second data set are provided. The asset I worked with is \textbf{TUSDBTC} as quoted on \textit{Binance Exchange}. The asset is Bitcoin quoted in USD. The access to the full exchange is free and level 2 data is available for every tick.
+I was not sure how to set up and event that the code would run each time there is trade on the exchange.
 
 \pagebreak
 
 \section*{Database Structure}
-I have included the below tables in this submission. The tables can be created and removed by SQL commands in the ``mysql\_scripts.sql`` file. The schema for the database is shows in Figure \ref{fig:schema}.\\
+I have included the below tables in this submission. The tables can be created by SQL commands in the ``create\_db.sql`` file. The schema for the database is shows in Figure \ref{fig:schema}.\\
 \begin{figure}[h!]
-	\centering
+  \centering
   \includegraphics[scale=0.40]{schema.png}
   \caption{Schema}
   \label{fig:schema}
 \end{figure}
-\\
-It should be noted that I am missing relationships in the database at the moment. The database structure is still a prototype.
 
-\subsection*{Bid and Ask}
-Bid and ask prices are split into two tables. The tables are identical. The tables from Figure \ref{fig:ask} and Figure \ref{fig:bid} carry the data for the symbol and specific Exchange time stamp as given by \textit{updateId} column. My time stamps are in the \textit{myUtc} column representing the time on my computer.
+The tables can be dropped using the ``rollback\_db.sql`` file. This file provides a logical inverse to the create operation. Additionally, I built functionality that can create table on fly using Pandas and SQL Alchemy however the default behaviours are not very good as it fails to create foreign keys and so on.
+
+\subsection*{Tables}
+\paragraph*{symbolRef.} This is just a reference table for symbols. The symbols are strings, however it is more efficient to use integers for foreign keys and it is better to store integers than strings.
+\paragraph*{bid and ask.} These to table are identical from data types point of view however the just store the bid and ask prices as well as my UTC time stamp and the server `updatedId` flag. This is a large integer that gets changed each time there is a trade.
+\paragraph*{limits.}. Basically, the exchange give users request or order limits in time intervals. We can make 1200 data request in a minute or 10 orders in a second and 100 000 orders in a day. If we are creating a real trading application we would have to consider these closely.
+\paragraph*{data\_dict.} This is manually created table and holds descriptions for the data fields in the database.
+
+\section*{Bid and Ask}
+Bid and ask prices are split into two tables. The tables are identical. The tables from Figure \ref{fig:ask} and Figure \ref{fig:bid} carry the data for the symbol and specific Exchange ID as given by \textit{updateId} column. My time stamps are in the \textit{myUtc} column representing the time on my computer.
 
 \begin{figure}[h!]
 	\centering
@@ -154,15 +159,48 @@ Bid and ask prices are split into two tables. The tables are identical. The tabl
   \label{fig:bid}
 \end{figure}
 
-\subsection*{All Symbols}
-We know that it is easy to start mirroring the whole exchange we have the the list of a all symbols. The symbols with latest prices are stored in \textit{symbol} table. Symbol is the term the exchange uses. Currently, there are some 400 different currency pairs we can access through the exchange API.
+\section*{Exchange API}
+It is important to handle the communication to the Exchange well. The class \textit{DataEndPoint} hold all methods that can collect the data from the exchange as opposed to submit trades. I leave it to the reader to read over the comments for these methods to see what can be easily pulled out from the exchange.
+
+\section*{Data Analysis - First Look}
+I collected 1 hour of trading data on per second basis. Figure \ref{fig:plt1} shows cumulative bid and ask prices with quantity. The way how I think about this is it is supply and demand curves. We see that there is a lot of volatility over 1 minute interval. This is good as it means that we will be able to create strategies.
 \begin{figure}[h!]
 	\centering
-  \includegraphics[scale=0.3]{symbol.png}
-  \caption{Symbols}
-  \label{fig:symbol}
+  \includegraphics[scale=0.5]{plot1.png}
+  \caption{All bid and ask prices and quantities in 1 minute}
+  \label{fig:plt1}
 \end{figure}
 
+The problem in the Figure \ref{fig:plt1} is that we do not see much details. So, I plotted the same time interval but with close look at what was happing around the spread in Figure \ref{fig:plt2}. Again we see the volatility in the price within one minute.
+
+\begin{figure}[h!]
+	\centering
+  \includegraphics[scale=0.5]{plot2.png}
+  \caption{Detailed Price and quantity moments around the spread in 1 minute}
+  \label{fig:plt2}
+\end{figure}
+
+We also have have look the maximum bid and minimum ask prices and plot them over the 1 hour interval. This is plotted in Figure \ref{fig:plt3}. This shows that we do have trends and turning points happing over time again. We should use the trading strategies that we learning for this and we can starting simulating the trade at bid and ask prices.
+
+\begin{figure}[h!]
+	\centering
+  \includegraphics[scale=0.5]{plot3.png}
+  \caption{Max bid and min ask over 1 hour}
+  \label{fig:plt3}
+\end{figure}
+
+Finally, we check the spread for the two currencies as in Figure \ref{fig:plt4}. We immediately see that that we could create mean reversion strategy for the spread. It may not be viable on profit versus fee basis however we could tests this.
+
+\begin{figure}[h!]
+	\centering
+  \includegraphics[scale=0.5]{plot4.png}
+  \caption{Max bid and min ask spread over 1 hour}
+  \label{fig:plt4}
+\end{figure}
+
+\pagebreak
+\section*{Summary}
+Looking at the data, it is easy to spot the same patters as in the time frequencies however connecting to the exchange directly gives full details as to what is going in the market. We are not able to do this for equity or standard financial markets for free. Having a look at the data, we will be able to exactly model what is going in the market rather than second guess from some summary data such as OHLC from Yahoo.
 
 \section*{Formatting Citations}
 

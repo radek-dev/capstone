@@ -18,6 +18,7 @@ from src.config import (
 
 pd.set_option('precision', 10)
 
+
 class Db:
     """Tools for handling SQL database"""
     def __init__(self):
@@ -345,7 +346,10 @@ def analyse_data():
     df['spread'].plot(title='Spread over 1 hour')
     plt.show()
 
+
 def main():
+    # uncomment if you with to start the collection of live data.
+    # collect_live_data()
     analyse_data()
 
 
