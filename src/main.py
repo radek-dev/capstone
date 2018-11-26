@@ -1,12 +1,13 @@
 """
 Capstone Project - Interim Report and Code
 """
-import time
 import datetime as dt
+import time
 
+import MySQLdb as mysql
+import matplotlib.pyplot as plt
 import pandas as pd
 import sqlalchemy
-import MySQLdb as mysql
 from binance.client import Client
 
 from src.config import (
@@ -15,36 +16,41 @@ from src.config import (
     MYSQL_USER,
     MYSQL_PASSWORD)
 
+pd.set_option('precision', 10)
 
 class Db:
+    """Tools for handling SQL database"""
     def __init__(self):
         self.symbol_map = {'TUSDBTC': 1}
 
     @staticmethod
-    @property
     def get_db_engine():
         """hold connection details"""
         return sqlalchemy.create_engine('mysql+pymysql://{0}:{1}@{2}:{3}/{4}'.format(
             MYSQL_USER, MYSQL_PASSWORD, 'localhost', '3306', 'capstone'), echo=False)
 
+    @staticmethod
+    def get_mysql_engine():
+        return mysql.connect(user=MYSQL_USER, passwd=MYSQL_PASSWORD, db='capstone')
+
     def return_sql(self, sql='SHOW TABLES'):
         """executes any sql and tries to return data"""
-        return self.get_db_engine.execute(sql).fetchall()
+        return self.get_db_engine().execute(sql).fetchall()
 
     def execute_sql(self, sql='SHOW TABLES'):
         """executes any sql and does not try to return data"""
-        return self.get_db_engine.execute(sql)
+        return self.get_db_engine().execute(sql)
 
     def write_df(self, df, index, table_name='test_table'):
         """stores the data frame to the database"""
-        with self.get_db_engine.engine.connect() as conn:
+        with self.get_db_engine().engine.connect() as conn:
             df = df.to_sql(name=table_name, con=conn, if_exists='append',
                            index=index)
         return df
 
     def insert_bid_ask(self, df, target_table):
-        conn = mysql.connect(user=MYSQL_USER, passwd=MYSQL_PASSWORD, db='capstone')
-        cursor = conn.cursor('')
+        conn = self.get_mysql_engine()
+        cursor = conn.cursor()
         cursor.execute('select * from {} where updatedId = {} LIMIT 1'.format(
             target_table, df['updatedId'].iloc[0]))
         already_in = cursor.fetchall()
@@ -70,10 +76,21 @@ class Db:
         else:
             print('This data is already updated.')
 
-    def read_sql(self, sql='select * from test'):
+    def read_sql(self, sql='select * from symbolRef'):
         """returns pandas df as the query result"""
-        with self.get_db_engine.engine.connect() as conn:
+        with self.get_db_engine().engine.connect() as conn:
             df = pd.read_sql(sql=sql, con=conn)
+        return df
+
+    def read_mysql(self, sql='select * from symbolRef'):
+        conn = self.get_mysql_engine()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            headers = [header[0] for header in cursor.description]
+            df = pd.DataFrame(list(cursor.fetchall()), columns=headers)
+        finally:
+            conn.close()
         return df
 
     def read_table(self, sql='select * from table_name', table_name='test'):
@@ -94,6 +111,7 @@ class Db:
 
 
 class DataEndPoint:
+    """Tools for connecting to exchange"""
     def __init__(self):
         self.client = Client(API_KEY, API_SECRET)
         self.db = Db()
@@ -101,7 +119,6 @@ class DataEndPoint:
     def fetch_market_depth(self, symbol='TUSDBTC'):
         """bid and ask prices for given time and symbol"""
         depth = self.client.get_order_book(symbol=symbol)
-        db = Db()
 
         df_bid = pd.DataFrame(depth['bids'], columns=['price', 'amount', 'col3']).drop(labels=['col3'], axis=1)
         df_bid['updatedId'] = depth['lastUpdateId']
@@ -192,24 +209,20 @@ class DataEndPoint:
 
     def fetch_aggregate_trade_iterator(self):
         agg_trades = self.client.aggregate_trade_iter(symbol='TUSDBTC', start_str='30 minutes ago UTC')
-
         # iterate over the trade iterator
         for trade in agg_trades:
             print(trade)
             # do something with the trade data
-
         # convert the iterator to a list
         # note: generators can only be iterated over once so we need to call it again
         agg_trades = self.client.aggregate_trade_iter(symbol='ETHBTC', start_str='30 minutes ago UTC')
         agg_trade_list = list(agg_trades)
-
         # example using last_id value - don't run this one - can be very slow
         agg_trades = self.client.aggregate_trade_iter(symbol='ETHBTC', last_id=3263487)
         agg_trade_list = list(agg_trades)
 
     def fetch_candlesticks(self):
         candles = self.client.get_klines(symbol='BNBBTC', interval=Client.KLINE_INTERVAL_30MINUTE)
-
         # this works but I am not sure how to use it
         for kline in self.client.get_historical_klines_generator("BNBBTC", Client.KLINE_INTERVAL_1MINUTE, "1 day ago UTC"):
             print(kline)
@@ -234,16 +247,106 @@ class DataEndPoint:
         """
         tickers = client.get_orderbook_tickers()
         pd.DataFrame(tickers)
-        pass
 
 
-def main():
-
+def collect_live_data():
+    """code snippets to collect data"""
     market_data = DataEndPoint()
 
     for i in range(3600):
         market_data.fetch_market_depth()
         time.sleep(1)
+
+
+def analyse_data():
+    """code snippets to used to analyse the data"""
+    # collect data
+    db = Db()
+
+    str_sql = """
+        select distinct bid.updatedId
+        from bid
+        order by bid.updatedId asc
+        limit 60;
+        """
+
+    df_updated_id = db.read_sql(str_sql)
+
+    for index, updated_id in df_updated_id.iloc[:, 0].iteritems():
+        str_sql = """
+            select b.price, sum(b.amount) as amount
+            from bid b
+              inner join symbolRef sR on b.symbolId = sR.id
+            where b.updatedId = {}
+            group by b.price
+            order by b.price DESC;
+            """.format(updated_id)
+        df_bid = db.read_sql(str_sql)
+        df_bid['cum_amount'] = df_bid['amount'].cumsum()
+        str_sql = """
+            select a.price, sum(a.amount) as amount
+            from ask a
+              inner join symbolRef sR on a.symbolId = sR.id
+            where a.updatedId = {}
+            group by a.price
+            order by a.price ASC;
+            """.format(updated_id)
+        df_ask = db.read_sql(str_sql)
+        df_ask['cum_amount'] = df_ask['amount'].cumsum()
+        plt.plot(df_bid['price'], df_bid['cum_amount'], 'r', df_ask['price'], df_ask['cum_amount'], 'b')
+    plt.title('Bid and Ask over 1 minute')
+    plt.xticks(rotation=90)
+    plt.show()
+
+    for index, updated_id in df_updated_id.iloc[:, 0].iteritems():
+        str_sql = """
+            select b.price, sum(b.amount) as amount
+            from bid b
+              inner join symbolRef sR on b.symbolId = sR.id
+            where b.updatedId = {}
+                and b.price >= 0.0002245
+            group by b.price
+            order by b.price DESC;
+            """.format(updated_id)
+        df_bid = db.read_sql(str_sql)
+        df_bid['cum_amount'] = df_bid['amount'].cumsum()
+        str_sql = """
+            select a.price, sum(a.amount) as amount
+            from ask a
+              inner join symbolRef sR on a.symbolId = sR.id
+            where a.updatedId = {}
+                and a.price <= 0.0002265
+            group by a.price
+            order by a.price ASC;
+            """.format(updated_id)
+        df_ask = db.read_sql(str_sql)
+        df_ask['cum_amount'] = df_ask['amount'].cumsum()
+        plt.plot(df_bid['price'], df_bid['cum_amount'], 'r', df_ask['price'], df_ask['cum_amount'], 'b')
+    plt.title('Bid and Ask over 1 minute - close to the spread')
+    plt.xticks(rotation=90)
+    plt.show()
+
+    str_sql = """
+    select qryMinAsk.updatedId, qryMaxBid.bidPrice, qryMinAsk.askPrice from
+      (select b.updatedId, max(b.price) as bidPrice
+      from bid b
+      group by b.updatedId) as qryMaxBid
+    inner join
+      (select a.updatedId, min(a.price) as askPrice
+      from ask a
+      group by a.updatedId) as qryMinAsk
+    on qryMinAsk.updatedId = qryMaxBid.updatedId order by qryMinAsk.updatedId
+    """
+
+    df = db.read_sql(str_sql)
+    df['spread'] = df['askPrice'] - df['bidPrice']
+    df[['bidPrice', 'askPrice']].plot(title='Bid-Ask spread over 1 hour')
+    plt.show()
+    df['spread'].plot(title='Spread over 1 hour')
+    plt.show()
+
+def main():
+    analyse_data()
 
 
 if __name__ == '__main__':
