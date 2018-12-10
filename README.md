@@ -99,5 +99,7 @@ MAINTAINERS
 
 GitLab Repo
 -----------
-The project can also be accessed at https://gitlab.com/GitLabUser01/capstone.git.
-Let me know if you like to be graded access. It is private at the moment.
+The project can also be accessed at
+```
+https://gitlab.com/GitLabUser01/capstone.git
+```

@@ -1,16 +1,20 @@
 """
 Capstone Project - Interim Report and Code
 """
+from __future__ import division, print_function
+
 import datetime as dt
 import time
 
 import MySQLdb as mysql
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import sqlalchemy
 from binance.client import Client
+from scipy.stats import norm
 
-from src.config import (
+from config import (
     API_KEY,
     API_SECRET,
     MYSQL_USER,
@@ -250,13 +254,127 @@ class DataEndPoint:
         pd.DataFrame(tickers)
 
 
+class Kpis():
+    def __init__(self, df):
+        self.df = df
+        self.kpi = {}
+        self.trade_summary = None
+        self.prepare_trade_summary()
+        self.print_kpis()
+
+    def prepare_trade_summary(self):
+        df = pd.DataFrame(self.df['position'])
+        trades = df.ne(df.shift()).apply(lambda x: x.index[x].tolist())
+        data = []
+        for i in range(len(trades[0])):
+            if trades[0][i] != trades[0][-1]:
+                data.append([trades[0][i], trades[0][i+1],
+                             self.df.loc[trades[0][i], 'price_mid'],
+                             self.df.loc[trades[0][i+1], 'price_mid']])
+        df = pd.DataFrame(data=data, columns=['trade_start', 'trade_end', 'start_price', 'end_price'])
+        df['return'] = df['end_price'] / df['start_price']
+        self.trade_summary = df
+
+    def print_kpis(self):
+        self.kpi['mean_annualised_return'] = self.get_mean_annualised_return()
+        self.kpi['annualised_std'] = self.get_annualised_std()
+        self.kpi['sharp_ratio'] = self.get_sharp_ratio()
+        self.kpi['number_of_trades'] = self.get_number_trades()
+        self.kpi['win_rate'] = self.get_win_rate()
+        self.kpi['avg_trade_return'] = self.get_avg_trade_return()
+        self.kpi['avg_win_return'] = self.get_avg_win_return()
+        self.kpi['avg_loss_return'] = self.get_avg_loss_return()
+        self.kpi['win_loss_ratio'] = self.get_win_loss_ratio()
+        self.kpi['max_consecutive_winners'], self.kpi['max_consecutive_losers'] =\
+            self.get_max_consecutive_trades()
+        self.kpi['max_drawdown'] = self.get_max_drawdown()
+        self.kpi['cagr'] = self.get_cagr()
+        self.kpi['lake_ratio'] = self.get_lake_ratio()
+        print(pd.DataFrame(pd.Series(self.kpi, name='KPIs')))
+
+    def get_mean_annualised_return(self):
+        mean_return = self.df[self.df['return'] != 1]['return'].mean()
+        days = (len(self.df) / float(3600)) / float(24)
+        return mean_return ** (365/days) - 1
+
+    def get_annualised_std(self):
+        std_return = self.df[self.df['return'] != 1]['return'].std()
+        return std_return * 252
+
+    def get_sharp_ratio(self):
+        return self.get_mean_annualised_return() / self.get_annualised_std()
+
+    def get_number_trades(self):
+        return len(self.trade_summary)
+
+    def get_win_rate(self):
+        return np.where(self.trade_summary['return'] > 1, 1, 0).sum() / float(self.get_number_trades())
+
+    def get_avg_trade_return(self):
+        return (self.trade_summary['return']-1).mean()
+
+    def get_avg_win_return(self):
+        return (self.trade_summary[self.trade_summary['return'] > 1]['return']-1).mean()
+
+    def get_avg_loss_return(self):
+        return (self.trade_summary[self.trade_summary['return'] < 1]['return']-1).mean()
+
+    def get_win_loss_ratio(self):
+        return self.get_avg_win_return() / float(self.get_avg_loss_return())
+
+    def get_max_consecutive_trades(self):
+        """
+        w_max - maximum consecutive winners
+        l_max - maximum consecutive losers
+        """
+        winner_flags, w_max = np.where(self.trade_summary['return'] > 1, 1, 0), 0
+        losers_flags, l_max = np.where(self.trade_summary['return'] < 1, 1, 0), 0
+        for i in range(1, len(losers_flags)):
+            if losers_flags[i] != 0:
+                losers_flags[i] += losers_flags[i - 1]
+                if losers_flags[i] > l_max:
+                    l_max = losers_flags[i]
+            if winner_flags[i] != 0:
+                winner_flags[i] += winner_flags[i - 1]
+                if winner_flags[i] > w_max:
+                    w_max = winner_flags[i]
+        return w_max, l_max
+
+    def get_max_drawdown(self):
+        # noinspection PyBroadException
+        try:
+            valuation = self.df['cum_ret'].replace(np.nan, 1).values.flatten()
+            # end of period
+            end_index = np.argmax(np.maximum.accumulate(valuation) - valuation)
+            # start of period
+            start_index = np.argmax(valuation[:end_index])
+            mdd = (valuation[end_index] / valuation[start_index] - 1) * (-1)
+        except:
+            print('failed to find MDD')
+            mdd = np.nan
+        return mdd
+
+    def get_cagr(self):
+        s_val, e_val = self.df['cum_ret'].replace(np.nan, 1).iloc[0], \
+                       self.df['cum_ret'].replace(np.nan, 1).iloc[-1]
+        no_years = 1/float(100)
+        return (e_val / s_val) ** (1/no_years) - 1
+
+    def get_lake_ratio(self):
+        df = pd.DataFrame(self.df['cum_ret'].replace(np.nan, 1).copy())
+        df['cum_max'] = df['cum_ret'].cummax()
+        df['lakes'] = df['cum_max'] - df['cum_ret']
+        return df['lakes'].sum() / df['cum_max'].sum()
+
+
 def collect_live_data():
     """code snippets to collect data"""
     market_data = DataEndPoint()
 
-    for i in range(3600):
+    for i in range(3600 * 3):
         market_data.fetch_market_depth()
         time.sleep(1)
+
 
 
 def analyse_data():
@@ -347,10 +465,121 @@ def analyse_data():
     plt.show()
 
 
+def build_strategy():
+
+    def log_normal_cdf(x=0, mu=0, sigma=0):
+        return norm.cdf((np.log(x) - mu) / sigma)
+
+    db = Db()
+
+    str_sql = """
+        select distinct bid.updatedId
+        from bid
+        order by bid.updatedId asc
+        """
+
+    df_updated_id = db.read_sql(str_sql)
+
+    data = []
+    for index, updated_id in df_updated_id.iloc[:, 0].iteritems():
+        str_sql = """
+            select * from ask 
+            where updatedId = {}
+            order by price asc;
+        """.format(updated_id)
+
+        df_ask = db.read_sql(str_sql)
+        log_values = np.log(df_ask['price'].values)
+        mu = (log_values.sum()) / len(df_ask['price'])
+        sigma = np.sqrt(((log_values - mu) ** 2).sum() / (len(df_ask['price']) - 1))
+        prob = 1 - np.vectorize(log_normal_cdf)(df_ask['price'], mu, sigma)
+        prob_weighted_supply = (df_ask['amount'] * prob).sum()
+        total_supply = df_ask['amount'].sum()
+
+        str_sql = """
+                select * from bid 
+                where updatedId = {}
+                order by price DESC;
+            """.format(updated_id)
+        df_bid = db.read_sql(str_sql)
+        log_values = np.log(df_bid['price'].values)
+        mu = (log_values.sum()) / len(df_bid['price'])
+        sigma = np.sqrt(((log_values - mu) ** 2).sum() / (len(df_bid['price']) - 1))
+        # need to reverse the order as we want to the mass to start at the highest value
+        prob = 1 - np.vectorize(log_normal_cdf)(df_bid['price'], mu, sigma)[::-1]
+        prob_weighted_demand = (df_bid['amount'] * prob).sum()
+        total_demand = df_ask['amount'].sum()
+
+        best_bid = df_bid['price'].max()
+        best_ask = df_ask['price'].min()
+        spread_scale = (best_ask / best_bid) - 1
+        price_mid = (best_bid + best_ask) / 2
+        base = total_supply + total_demand
+        mid_point = (total_demand + total_supply) / 2
+        ask_price_adjustment = (mid_point - (prob_weighted_demand - prob_weighted_supply))/base * spread_scale
+        bid_price_adjustment = (mid_point - (prob_weighted_supply - prob_weighted_demand))/base * spread_scale
+
+        if prob_weighted_demand > prob_weighted_supply:
+            price_adj = price_mid / (1 + bid_price_adjustment)
+            data.append([best_bid, best_ask, price_mid, price_adj, np.nan])
+        else:
+            price_adj = price_mid * (1 + ask_price_adjustment)
+            data.append([best_bid, best_ask, price_mid, np.nan, price_adj])
+        print(index)
+
+    df = pd.DataFrame(data, columns=['max_bid', 'min_ask', 'price_mid', 'price_adj_ask', 'price_adj_bid'])
+    df[['max_bid', 'min_ask', 'price_adj_ask', 'price_adj_bid']].plot()
+    plt.show()
+    df.to_csv('data.csv')
+
+
+def trade(plotting=False):
+    df = pd.read_csv('data.csv', index_col=0)
+    df['long_signal'] = np.where(np.isnan(df['price_adj_ask']), 0, 1)
+    df['short_signal'] = np.where(np.isnan(df['price_adj_bid']), 0, 1)
+
+    df['position'] = 0
+    for n in range(len(df)):
+        if n > 60:
+            view = df.loc[n-60: n, 'long_signal'].sum()
+            if view > 55:
+                df.loc[n, 'position'] = 1
+            elif view < 3:
+                df.loc[n, 'position'] = -1
+            else:
+                df.loc[n, 'position'] = 0
+    # close the trade at the end of the time period
+    df.loc[len(df)-1, 'position'] = 0
+
+    df['return'] = (df['min_ask'].pct_change() * df['position']) + 1
+    df['cum_ret'] = df['return'].cumprod()
+
+    if plotting:
+        df[['max_bid', 'min_ask', 'price_adj_ask', 'price_adj_bid']].plot()
+        plt.show()
+
+        df['position'].plot()
+        plt.show()
+
+        df[['long_signal']].plot()
+        plt.show()
+
+        df[['short_signal']].plot()
+        plt.show()
+
+        df['cum_ret'].plot()
+        plt.show()
+
+    return df
+
+
 def main():
     # uncomment if you with to start the collection of live data.
-    # collect_live_data()
-    analyse_data()
+    collect_live_data()
+    # analyse_data()
+    # build_strategy()
+    # df = trade()
+    # kpi = Kpis(df)
 
 
 if __name__ == '__main__':
