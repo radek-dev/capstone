@@ -77,11 +77,13 @@ INSTALLATION
    2. Install all requirements.
 
 You will need `MySQL` server instance as well.  I was don't provide any installation
- steps for `MySQL` server as this is platform dependent.
+ steps for `MySQL` server as this is platform dependent. My credentials for
+ the `MySQL` server are stored in `config.py` file/module.
  
 Also, the data set was fetched using my `Binance` account credentials. You will need those
-if you wish to make my code fully functional. My credentials are stored in `config.py` file
-that is not submitted with the project.
+if you wish to make my code fully functional. My credentials are stored in `config.py` file.
+
+`config.py` file is not submitted or made public anywhere.
 
 You can also clone the below repo to get the codes.
 
