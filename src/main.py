@@ -4,9 +4,12 @@ Capstone Project - Interim Report and Code
 from __future__ import division, print_function
 
 import datetime as dt
+import os
+import sys
 import time
 
 import MySQLdb as mysql
+import logging as lg
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -14,13 +17,19 @@ import sqlalchemy
 from binance.client import Client
 from scipy.stats import norm
 
-from config import (
+from src.config import (
     API_KEY,
     API_SECRET,
     MYSQL_USER,
     MYSQL_PASSWORD)
 
 pd.set_option('precision', 10)
+
+lg.basicConfig(filename='log_project.log', level=lg.DEBUG,
+               format='%(asctime)s:%(levelname)s:%(message)s')
+# clear the log file - so it stores only one run's logging messages
+if os.path.exists('log_project.log'):
+    with open('log_project.log', 'w'): pass
 
 
 class Db:
@@ -288,9 +297,9 @@ class Kpis():
         self.kpi['max_consecutive_winners'], self.kpi['max_consecutive_losers'] =\
             self.get_max_consecutive_trades()
         self.kpi['max_drawdown'] = self.get_max_drawdown()
-        self.kpi['cagr'] = self.get_cagr()
         self.kpi['lake_ratio'] = self.get_lake_ratio()
         print(pd.DataFrame(pd.Series(self.kpi, name='KPIs')))
+        lg.info('KPIs calculated')
 
     def get_mean_annualised_return(self):
         mean_return = self.df[self.df['return'] != 1]['return'].mean()
@@ -302,7 +311,7 @@ class Kpis():
         return std_return * 252
 
     def get_sharp_ratio(self):
-        return self.get_mean_annualised_return() / self.get_annualised_std()
+        return np.abs(self.get_mean_annualised_return() / self.get_annualised_std())
 
     def get_number_trades(self):
         return len(self.trade_summary)
@@ -320,7 +329,7 @@ class Kpis():
         return (self.trade_summary[self.trade_summary['return'] < 1]['return']-1).mean()
 
     def get_win_loss_ratio(self):
-        return self.get_avg_win_return() / float(self.get_avg_loss_return())
+        return np.abs(self.get_avg_win_return() / float(self.get_avg_loss_return()))
 
     def get_max_consecutive_trades(self):
         """
@@ -354,12 +363,6 @@ class Kpis():
             mdd = np.nan
         return mdd
 
-    def get_cagr(self):
-        s_val, e_val = self.df['cum_ret'].replace(np.nan, 1).iloc[0], \
-                       self.df['cum_ret'].replace(np.nan, 1).iloc[-1]
-        no_years = 1/float(100)
-        return (e_val / s_val) ** (1/no_years) - 1
-
     def get_lake_ratio(self):
         df = pd.DataFrame(self.df['cum_ret'].replace(np.nan, 1).copy())
         df['cum_max'] = df['cum_ret'].cummax()
@@ -375,16 +378,18 @@ def collect_live_data():
         market_data.fetch_market_depth()
         time.sleep(1)
 
+    lg.info('Finish downloading the data')
 
 
 def analyse_data():
-    """code snippets to used to analyse the data"""
+    """this code plots that data"""
     # collect data
     db = Db()
 
     str_sql = """
         select distinct bid.updatedId
         from bid
+        where DATE(myUtc) = '2018-12-10'
         order by bid.updatedId asc
         limit 60;
         """
@@ -449,23 +454,28 @@ def analyse_data():
     select qryMinAsk.updatedId, qryMaxBid.bidPrice, qryMinAsk.askPrice from
       (select b.updatedId, max(b.price) as bidPrice
       from bid b
+      where DATE(myUtc) = '2018-12-10'
       group by b.updatedId) as qryMaxBid
     inner join
       (select a.updatedId, min(a.price) as askPrice
       from ask a
-      group by a.updatedId) as qryMinAsk
+      where DATE(myUtc) = '2018-12-10'
+      group by a.updatedId
+      ) as qryMinAsk
     on qryMinAsk.updatedId = qryMaxBid.updatedId order by qryMinAsk.updatedId
     """
 
     df = db.read_sql(str_sql)
     df['spread'] = df['askPrice'] - df['bidPrice']
-    df[['bidPrice', 'askPrice']].plot(title='Bid-Ask spread over 1 hour')
+    df[['bidPrice', 'askPrice']].plot(title='Bid-Ask spread')
     plt.show()
     df['spread'].plot(title='Spread over 1 hour')
     plt.show()
+    lg.info('Plotted the data')
 
 
 def build_strategy():
+    """builds the trading strategy and valuations for KPIs"""
 
     def log_normal_cdf(x=0, mu=0, sigma=0):
         return norm.cdf((np.log(x) - mu) / sigma)
@@ -475,6 +485,7 @@ def build_strategy():
     str_sql = """
         select distinct bid.updatedId
         from bid
+        where DATE(myUtc) = '2018-12-10'
         order by bid.updatedId asc
         """
 
@@ -530,11 +541,13 @@ def build_strategy():
     df = pd.DataFrame(data, columns=['max_bid', 'min_ask', 'price_mid', 'price_adj_ask', 'price_adj_bid'])
     df[['max_bid', 'min_ask', 'price_adj_ask', 'price_adj_bid']].plot()
     plt.show()
-    df.to_csv('data.csv')
+    df.to_csv('data_out_of_sample.csv')
+    lg.info('Saved strategy data to CSV.')
 
 
-def trade(plotting=False):
-    df = pd.read_csv('data.csv', index_col=0)
+def trade(plotting=True):
+    """This simulates trading based on the data from build_strategy function"""
+    df = pd.read_csv('src/data_out_of_sample.csv', index_col=0)
     df['long_signal'] = np.where(np.isnan(df['price_adj_ask']), 0, 1)
     df['short_signal'] = np.where(np.isnan(df['price_adj_bid']), 0, 1)
 
@@ -570,17 +583,28 @@ def trade(plotting=False):
         df['cum_ret'].plot()
         plt.show()
 
+    lg.info('Run the trade function.')
     return df
 
 
 def main():
-    # uncomment if you with to start the collection of live data.
-    collect_live_data()
-    # analyse_data()
-    # build_strategy()
-    # df = trade()
-    # kpi = Kpis(df)
+    try:
+
+
+        # uncomment if you with to start the collection of live data.
+        # collect_live_data()
+        # analyse_data()
+        # build_strategy()
+        df = trade()
+        kpi = Kpis(df)
+        lg.info('Run the main function.')
+    except Exception as e:
+        print("\nERROR: " + unicode(e) + " Type: " + str(type(e)))
+        print("\nSee the log for the error message.")
+        lg.error(e.message + " ")
+        return_code = 1
+    return return_code
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
