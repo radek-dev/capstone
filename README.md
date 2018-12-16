@@ -15,6 +15,7 @@ CONTENTS OF THIS FILE
  
  * Description  
  * Introduction
+ * MySQL Database
  * Main Requirements
  * Installation
  * Error Installing SciPy
@@ -26,11 +27,21 @@ CONTENTS OF THIS FILE
 
 DESCRIPTION
 -----------
-This is project is the capstone project for the WQU MSc course. It fetches data from crypto-currency exchange called Binance vie their API and python package called `python-binance`.
+This is project is the capstone project for the WQU MSc course. It fetches data from
+crypto-currency exchange called Binance vie their API and python package called `python-binance`.
 
 The environment is specified in 'requirements.txt' file.
 
-I use MySQL server instance installed locally to handle the data storage. The default MySQL implementation for Manjaro (the Linux distribution that I use) is `MariaDB`. So, I had to use MariaDB. The SQL codes should be compatible with MySQL but this was not tested. All SQL codes are stored in `.sql` files and are submittedl
+MySQL Description
+-----------------
+
+I use MySQL server instance installed locally to handle the data storage. The default MySQL
+implementation for Manjaro (the Linux distribution that I use) is `MariaDB`. So, I had to use
+ MariaDB. The SQL codes should be compatible with MySQL but this was not tested.
+
+All SQL codes are stored in `.sql` files and are submitted. `create_db.sql` can be used to 
+reproduce that database I build. `rollback_db.sql` can be used to destroy all tables build
+ with `create_db.sql`. `general_queries.sql` hold the queries that can be used to investigate the data.
  
 MAIN REQUIREMENTS
 -----------------
@@ -72,24 +83,32 @@ Also, the data set was fetched using my `Binance` account credentials. You will 
 if you wish to make my code fully functional. My credentials are stored in `config.py` file
 that is not submitted with the project.
 
+You can also clone the below repo to get the codes.
+
+```
+https://gitlab.com/GitLabUser01/capstone.git
+```
 
 ERROR INSTALLING SCIPY
----------------------------------
+----------------------
 If there are any issues installing SciPy library, please following instruction provided at 
 the documentation: https://www.scipy.org/install.html#scientific-python-distributions.
 
 
 EXECUTING THE PROJECT
--------------
-You can still run the below command if needed, however you need change the functionality in the `main` function.
- At the moment the code only can download the data and store them or create some plots.
+---------------------
+Note that the code was not written as a single function script, so please do not try to
+run the main function on its own.
 
-$ python main.py
+I execute the code in stages manually. Run `collect_live_data()` to collect the data and
+save them to the database. Run `analyse_data()` to see some plots
+about the data you have just collected - note that you will have to write the query to make sure
+that this function collects the right data. 
  
  
 TROUBLESHOOTING
 ---------------
-No log is available at the moment.
+A log file is available. You can use it as you go along the code.
 
  
 MAINTAINERS
@@ -99,7 +118,10 @@ MAINTAINERS
 
 GitLab Repo
 -----------
-The project can also be accessed at
+The project can also be accessed at https://gitlab.com/GitLabUser01/capstone.git.
+However, GitLab account is required.
+Use
 ```
-https://gitlab.com/GitLabUser01/capstone.git
+git clone https://gitlab.com/GitLabUser01/capstone.git
 ```
+to clone the repo.
