@@ -62,3 +62,41 @@ inner join
   from ask a
   group by a.updatedId) as qryMinAsk
 on qryMinAsk.updatedId = qryMaxBid.updatedId order by qryMinAsk.updatedId
+
+
+ select distinct bid.updatedId
+        from bid
+        where DATE(myUtc) = '2018-11-22'
+        order by bid.updatedId asc
+        limit 60;
+
+
+select * from ask
+where DATE(myUtc) = '2018-11-22'
+and price < 0.00027;
+
+select * from ask
+where DATE(myUtc) = '2018-11-22'
+and price > 0.00027;
+
+select distinct DATE(myUtc) from ask;
+
+
+ select qryMinAsk.updatedId, qryMaxBid.bidPrice, qryMinAsk.askPrice from
+      (select b.updatedId, max(b.price) as bidPrice
+      from bid b
+      where DATE(myUtc) = '2018-12-10'
+      group by b.updatedId) as qryMaxBid
+    inner join
+      (select a.updatedId, min(a.price) as askPrice
+      from ask a
+      where DATE(myUtc) = '2018-12-10'
+      group by a.updatedId
+      ) as qryMinAsk
+    on qryMinAsk.updatedId = qryMaxBid.updatedId order by qryMinAsk.updatedId;
+
+
+select b.updatedId, max(b.price), b.myUtc as bidPrice
+      from bid b
+      where DATE(myUtc) = '2018-11-22'
+      group by b.updatedId;
