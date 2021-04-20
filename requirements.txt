@@ -1,7 +1,7 @@
 asn1crypto==0.24.0
 atomicwrites==1.2.1
 attrs==18.2.0
-autobahn==18.11.1
+autobahn==20.12.3
 Automat==0.7.0
 backports.functools-lru-cache==1.5
 backports.shutil-get-terminal-size==1.0.0
